@@ -37,8 +37,41 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await signIn(demoEmail, demoPassword);
-    } catch (err: any) {
-      toast({ title: 'Demo login failed', description: 'Seed data may not be set up yet. ' + err.message, variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetDemo = async () => {
+    if (!confirm('⚠️ WARNING: This will reset ALL demo data to its original state.\n\nAll attendance records, user data, and settings will be lost.\n\nAre you sure?')) {
+      return;
+    }
+    
+    setLoading(true);
+    toast({ title: 'Resetting demo data...', description: 'Please wait' });
+    
+    try {
+      const response = await fetch('/api/reset-demo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (response.ok) {
+        toast({ 
+          title: '✅ Reset successful!', 
+          description: 'Page will refresh now',
+          variant: 'default'
+        });
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        throw new Error('Reset failed');
+      }
+    } catch (error) {
+      toast({ 
+        title: '❌ Reset failed', 
+        description: 'Please try again or contact support',
+        variant: 'destructive'
+      });
     } finally {
       setLoading(false);
     }
@@ -70,6 +103,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 className="h-11"
+                disabled={loading}
               />
               <Input
                 type="password"
@@ -77,6 +111,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 className="h-11"
+                disabled={loading}
               />
               <Button type="submit" className="w-full h-11" disabled={loading}>
                 {loading ? 'Signing in…' : 'Sign in'}
@@ -87,7 +122,9 @@ export default function LoginPage() {
 
         {/* Demo Login Buttons */}
         <div className="space-y-3">
-          <p className="text-xs text-muted-foreground text-center uppercase tracking-wider font-medium">Quick Demo Access</p>
+          <p className="text-xs text-muted-foreground text-center uppercase tracking-wider font-medium">
+            Quick Demo Access
+          </p>
           <div className="grid gap-2">
             {DEMO_ACCOUNTS.map(demo => (
               <button
@@ -106,6 +143,20 @@ export default function LoginPage() {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Reset Demo Data Button - NEW */}
+        <div className="pt-4 mt-2 border-t border-border/50">
+          <button
+            onClick={handleResetDemo}
+            disabled={loading}
+            className="w-full px-4 py-3 bg-red-600/10 border border-red-600/30 rounded-lg text-red-500 hover:bg-red-600/20 hover:border-red-600/50 transition-all text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            🔄 Reset All Demo Data
+          </button>
+          <p className="text-center text-xs text-muted-foreground mt-2">
+            This will reset all attendance records, users, and settings to default
+          </p>
         </div>
 
         <p className="text-xs text-center text-muted-foreground">
