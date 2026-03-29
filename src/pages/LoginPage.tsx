@@ -43,28 +43,39 @@ export default function LoginPage() {
   };
 
   const handleResetDemo = async () => {
-    if (!confirm('⚠️ Reset all demo data?\n\nThis will clear all attendance records and reset to default.')) {
+    if (!confirm('⚠️ Reset all demo data?\n\nThis will clear all local data and reset to default.')) {
       return;
     }
     
     setLoading(true);
-    toast({ title: 'Resetting...', description: 'Please wait' });
     
     try {
-      const response = await fetch('/api/reset-demo', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+      // Clear all localStorage items
+      localStorage.clear();
+      
+      // Clear sessionStorage
+      sessionStorage.clear();
+      
+      // Clear any IndexedDB databases
+      const databases = await indexedDB.databases();
+      databases.forEach(db => {
+        if (db.name) indexedDB.deleteDatabase(db.name);
       });
       
-      if (response.ok) {
-        toast({ 
-          title: '✓ Reset complete', 
-          description: 'Page will refresh',
-        });
-        setTimeout(() => window.location.reload(), 1500);
-      } else {
-        throw new Error('Reset failed');
-      }
+      // Clear cookies (document.cookie)
+      document.cookie.split(";").forEach(c => {
+        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+      });
+      
+      toast({ 
+        title: '✓ Demo data reset', 
+        description: 'Page will refresh in 2 seconds',
+      });
+      
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+      
     } catch (error) {
       toast({ 
         title: 'Reset failed', 
@@ -149,14 +160,14 @@ export default function LoginPage() {
         </p>
       </div>
 
-      {/* Small Reset Button - Bottom Right Corner */}
+      {/* Working Reset Button - Bottom Right */}
       <button
         onClick={handleResetDemo}
         disabled={loading}
         className="fixed bottom-4 right-4 p-2 rounded-lg bg-muted/50 hover:bg-red-500/10 border border-border/50 hover:border-red-500/30 transition-all group disabled:opacity-50"
-        title="Reset demo data"
+        title="Reset all demo data"
       >
-        <RefreshCw className="w-4 h-4 text-muted-foreground group-hover:text-red-500 transition-colors" />
+        <RefreshCw className={`w-4 h-4 text-muted-foreground group-hover:text-red-500 transition-colors ${loading ? 'animate-spin' : ''}`} />
       </button>
     </div>
   );
