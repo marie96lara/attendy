@@ -5,7 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { GraduationCap, Users, Shield, RefreshCw } from 'lucide-react';
-import { supabase } from '@/lib/supabase'; // Import your supabase client
+import { createClient } from '@supabase/supabase-js';
+
+// Your Supabase configuration
+const supabaseUrl = "https://vtvfljikljzsexfygpjb.supabase.co";
+const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0dmZsamlrbGp6c2V4ZnlncGpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MTUxNjQsImV4cCI6MjA5MDA5MTE2NH0.WRa_Hw1afNZjbSINDFs6vb4nendc4WYHbpN-5Qe8-Gw";
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const DEMO_ACCOUNTS = [
   { label: 'Student', email: 'student1@attendy.demo', password: 'demo123456', icon: GraduationCap, description: 'View attendance & mark presence' },
@@ -52,20 +57,40 @@ export default function LoginPage() {
     toast({ title: 'Resetting demo data...', description: 'Clearing database records' });
     
     try {
-      // Method 1: Delete using Supabase client
-      const { error: recordsError } = await supabase
+      // First, check if tables exist and delete records
+      console.log('Attempting to reset demo data...');
+      
+      // Try to delete from attendance_records
+      const { data: recordsData, error: recordsError } = await supabase
         .from('attendance_records')
         .delete()
         .neq('id', '00000000-0000-0000-0000-000000000000');
       
-      if (recordsError) throw recordsError;
+      if (recordsError) {
+        console.log('Records delete error:', recordsError);
+        // If table doesn't exist, that's fine
+        if (!recordsError.message.includes('does not exist')) {
+          throw recordsError;
+        }
+      } else {
+        console.log('Deleted attendance records');
+      }
       
-      const { error: sessionsError } = await supabase
+      // Try to delete from attendance_sessions
+      const { data: sessionsData, error: sessionsError } = await supabase
         .from('attendance_sessions')
         .delete()
         .neq('id', '00000000-0000-0000-0000-000000000000');
       
-      if (sessionsError) throw sessionsError;
+      if (sessionsError) {
+        console.log('Sessions delete error:', sessionsError);
+        // If table doesn't exist, that's fine
+        if (!sessionsError.message.includes('does not exist')) {
+          throw sessionsError;
+        }
+      } else {
+        console.log('Deleted attendance sessions');
+      }
       
       toast({ 
         title: '✅ Reset complete!', 
@@ -77,17 +102,17 @@ export default function LoginPage() {
     } catch (error: any) {
       console.error('Reset error:', error);
       
-      // If the above fails, try RPC call
-      try {
-        const { error: rpcError } = await supabase.rpc('reset_demo_data');
-        if (rpcError) throw rpcError;
-        
-        toast({ title: '✅ Reset complete!', description: 'Data cleared via RPC' });
-        setTimeout(() => window.location.reload(), 1500);
-      } catch (rpcError) {
+      // If tables don't exist, show appropriate message
+      if (error.message?.includes('does not exist')) {
+        toast({ 
+          title: 'ℹ️ No data to reset', 
+          description: 'The database tables have not been created yet.',
+          variant: 'default'
+        });
+      } else {
         toast({ 
           title: '❌ Reset failed', 
-          description: error.message || 'Please contact support',
+          description: error.message || 'Please try again',
           variant: 'destructive'
         });
       }
