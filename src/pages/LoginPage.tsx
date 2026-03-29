@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { GraduationCap, Users, Shield } from 'lucide-react';
+import { GraduationCap, Users, Shield, RefreshCw } from 'lucide-react';
 
 const DEMO_ACCOUNTS = [
   { label: 'Student', email: 'student1@attendy.demo', password: 'demo123456', icon: GraduationCap, description: 'View attendance & mark presence' },
@@ -43,12 +43,12 @@ export default function LoginPage() {
   };
 
   const handleResetDemo = async () => {
-    if (!confirm('⚠️ WARNING: This will reset ALL demo data to its original state.\n\nAll attendance records, user data, and settings will be lost.\n\nAre you sure?')) {
+    if (!confirm('⚠️ Reset all demo data?\n\nThis will clear all attendance records and reset to default.')) {
       return;
     }
     
     setLoading(true);
-    toast({ title: 'Resetting demo data...', description: 'Please wait' });
+    toast({ title: 'Resetting...', description: 'Please wait' });
     
     try {
       const response = await fetch('/api/reset-demo', {
@@ -58,9 +58,8 @@ export default function LoginPage() {
       
       if (response.ok) {
         toast({ 
-          title: '✅ Reset successful!', 
-          description: 'Page will refresh now',
-          variant: 'default'
+          title: '✓ Reset complete', 
+          description: 'Page will refresh',
         });
         setTimeout(() => window.location.reload(), 1500);
       } else {
@@ -68,8 +67,8 @@ export default function LoginPage() {
       }
     } catch (error) {
       toast({ 
-        title: '❌ Reset failed', 
-        description: 'Please try again or contact support',
+        title: 'Reset failed', 
+        description: 'Please try again',
         variant: 'destructive'
       });
     } finally {
@@ -78,7 +77,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4 relative">
       <div className="w-full max-w-md space-y-6">
         {/* Logo / Brand */}
         <div className="text-center space-y-2">
@@ -145,24 +144,20 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Reset Demo Data Button - NEW */}
-        <div className="pt-4 mt-2 border-t border-border/50">
-          <button
-            onClick={handleResetDemo}
-            disabled={loading}
-            className="w-full px-4 py-3 bg-red-600/10 border border-red-600/30 rounded-lg text-red-500 hover:bg-red-600/20 hover:border-red-600/50 transition-all text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            🔄 Reset All Demo Data
-          </button>
-          <p className="text-center text-xs text-muted-foreground mt-2">
-            This will reset all attendance records, users, and settings to default
-          </p>
-        </div>
-
         <p className="text-xs text-center text-muted-foreground">
           Silver Oak University Attendance System
         </p>
       </div>
+
+      {/* Small Reset Button - Bottom Right Corner */}
+      <button
+        onClick={handleResetDemo}
+        disabled={loading}
+        className="fixed bottom-4 right-4 p-2 rounded-lg bg-muted/50 hover:bg-red-500/10 border border-border/50 hover:border-red-500/30 transition-all group disabled:opacity-50"
+        title="Reset demo data"
+      >
+        <RefreshCw className="w-4 h-4 text-muted-foreground group-hover:text-red-500 transition-colors" />
+      </button>
     </div>
   );
 }
