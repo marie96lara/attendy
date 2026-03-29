@@ -90,7 +90,7 @@ export default function FacultyTakeAttendance() {
 
     const code = generateOTP();
     const hash = await hashCode(code);
-    const expiresAt = new Date(Date.now() + 10000).toISOString(); // 10 seconds
+    const expiresAt = new Date(Date.now() + 30000).toISOString(); // 10 seconds
 
     // If there's an existing session, update it; otherwise create new
     if (sessionId) {
@@ -114,7 +114,7 @@ export default function FacultyTakeAttendance() {
     }
 
     setCurrentCode(code);
-    setTimeLeft(10000);
+    setTimeLeft(30000);
     setIsActive(true);
   }, [selectedSubject, user, sessionId, toast]);
 
@@ -130,7 +130,7 @@ export default function FacultyTakeAttendance() {
     toast({ title: 'Session closed', description: `${students.length} students marked attendance` });
   };
 
-  const timerPercentage = isActive ? (timeLeft / 10000) * 100 : 0;
+  const timerPercentage = isActive ? (timeLeft / 30000) * 100 : 0;
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
