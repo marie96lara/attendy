@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { GraduationCap, Users, Shield, RefreshCw } from 'lucide-react';
+import { supabase } from '@/lib/supabase'; // Import your supabase client
 
 const DEMO_ACCOUNTS = [
   { label: 'Student', email: 'student1@attendy.demo', password: 'demo123456', icon: GraduationCap, description: 'View attendance & mark presence' },
@@ -43,45 +44,53 @@ export default function LoginPage() {
   };
 
   const handleResetDemo = async () => {
-    if (!confirm('⚠️ Reset all demo data?\n\nThis will clear all local data and reset to default.')) {
+    if (!confirm('⚠️ RESET ALL DEMO DATA?\n\nThis will permanently delete:\n• All attendance records\n• All attendance sessions\n\nThis action cannot be undone. Continue?')) {
       return;
     }
     
     setLoading(true);
+    toast({ title: 'Resetting demo data...', description: 'Clearing database records' });
     
     try {
-      // Clear all localStorage items
-      localStorage.clear();
+      // Method 1: Delete using Supabase client
+      const { error: recordsError } = await supabase
+        .from('attendance_records')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000');
       
-      // Clear sessionStorage
-      sessionStorage.clear();
+      if (recordsError) throw recordsError;
       
-      // Clear any IndexedDB databases
-      const databases = await indexedDB.databases();
-      databases.forEach(db => {
-        if (db.name) indexedDB.deleteDatabase(db.name);
-      });
+      const { error: sessionsError } = await supabase
+        .from('attendance_sessions')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000');
       
-      // Clear cookies (document.cookie)
-      document.cookie.split(";").forEach(c => {
-        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
-      });
+      if (sessionsError) throw sessionsError;
       
       toast({ 
-        title: '✓ Demo data reset', 
-        description: 'Page will refresh in 2 seconds',
+        title: '✅ Reset complete!', 
+        description: 'All attendance data has been cleared',
       });
       
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
+      setTimeout(() => window.location.reload(), 1500);
       
-    } catch (error) {
-      toast({ 
-        title: 'Reset failed', 
-        description: 'Please try again',
-        variant: 'destructive'
-      });
+    } catch (error: any) {
+      console.error('Reset error:', error);
+      
+      // If the above fails, try RPC call
+      try {
+        const { error: rpcError } = await supabase.rpc('reset_demo_data');
+        if (rpcError) throw rpcError;
+        
+        toast({ title: '✅ Reset complete!', description: 'Data cleared via RPC' });
+        setTimeout(() => window.location.reload(), 1500);
+      } catch (rpcError) {
+        toast({ 
+          title: '❌ Reset failed', 
+          description: error.message || 'Please contact support',
+          variant: 'destructive'
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -160,11 +169,11 @@ export default function LoginPage() {
         </p>
       </div>
 
-      {/* Working Reset Button - Bottom Right */}
+      {/* Reset Button - Bottom Right */}
       <button
         onClick={handleResetDemo}
         disabled={loading}
-        className="fixed bottom-4 right-4 p-2 rounded-lg bg-muted/50 hover:bg-red-500/10 border border-border/50 hover:border-red-500/30 transition-all group disabled:opacity-50"
+        className="fixed bottom-4 right-4 p-2 rounded-lg bg-muted/50 hover:bg-red-500/10 border border-border/50 hover:border-red-500/30 transition-all group disabled:opacity-50 z-50"
         title="Reset all demo data"
       >
         <RefreshCw className={`w-4 h-4 text-muted-foreground group-hover:text-red-500 transition-colors ${loading ? 'animate-spin' : ''}`} />
