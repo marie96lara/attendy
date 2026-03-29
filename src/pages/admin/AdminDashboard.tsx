@@ -15,7 +15,9 @@ import {
   Trash2,
   GraduationCap,
   UserCheck,
-  X
+  X,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 interface User {
@@ -36,9 +38,12 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'users'>('overview');
   const [formData, setFormData] = useState({
     name: '',
+    email: '',
+    password: '',
     role: 'student' as 'student' | 'faculty',
     roll_number: '',
   });
@@ -49,7 +54,7 @@ export default function AdminDashboard() {
   }, []);
 
   const loadStats = async () => {
-    // Total students
+    // Total students from profiles
     const { count: students } = await supabase
       .from('profiles')
       .select('*', { count: 'exact', head: true })
@@ -98,25 +103,19 @@ export default function AdminDashboard() {
     }
   };
 
-  const generatePassword = () => {
-    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  const generateRandomPassword = () => {
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%';
     let password = '';
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 10; i++) {
       password += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return password;
   };
 
-  const generateEmail = (name: string, role: string) => {
+  const generateEmail = (name: string) => {
     const cleanName = name.toLowerCase().replace(/\s/g, '.');
     const randomNum = Math.floor(Math.random() * 10000);
     return `${cleanName}.${randomNum}@attendy.demo`;
-  };
-
-  const generateRollNumber = () => {
-    const year = new Date().getFullYear().toString().slice(-2);
-    const randomNum = Math.floor(Math.random() * 10000);
-    return `${year}${randomNum.toString().padStart(4, '0')}`;
   };
 
   const handleCreateUser = async () => {
@@ -126,45 +125,88 @@ export default function AdminDashboard() {
     }
 
     setLoading(true);
-    const password = generatePassword();
-    const email = generateEmail(formData.name, formData.role);
-    const rollNumber = formData.role === 'student' ? (formData.roll_number || generateRollNumber()) : null;
+    
+    // Use provided password or generate one
+    const password = formData.password || generateRandomPassword();
+    const email = formData.email || generateEmail(formData.name);
+    const rollNumber = formData.role === 'student' ? (formData.roll_number || `STU${Date.now()}`) : null;
 
-    // Create auth user
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-    });
+    try {
+      // First check if user already exists
+      const { data: existingUser } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('email', email)
+        .single();
 
-    if (authError) {
-      toast({ title: 'Error', description: authError.message, variant: 'destructive' });
-      setLoading(false);
-      return;
-    }
+      if (existingUser) {
+        toast({ 
+          title: 'Error', 
+          description: `User with email ${email} already exists. Please use a different email.`, 
+          variant: 'destructive' 
+        });
+        setLoading(false);
+        return;
+      }
 
-    // Create profile
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .insert({
-        id: authData.user?.id,
-        name: formData.name,
-        email: email,
-        role: formData.role,
-        roll_number: rollNumber,
+      // Create auth user
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name: formData.name,
+            role: formData.role,
+          }
+        }
       });
 
-    if (profileError) {
-      toast({ title: 'Error', description: profileError.message, variant: 'destructive' });
-    } else {
-      // Show credentials
-      toast({
-        title: '✅ User Created Successfully!',
-        description: `${formData.name} (${formData.role})\nEmail: ${email}\nPassword: ${password}`,
-        duration: 10000,
-      });
-      
-      // Download credentials
-      const credentials = `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      if (authError) {
+        console.error('Auth error:', authError);
+        
+        // If user already exists in auth but not in profiles, try to get the user
+        if (authError.message.includes('already registered')) {
+          const { data: { user } } = await supabase.auth.signInWithPassword({
+            email,
+            password: 'temporary123', // This will fail but might give us user info
+          });
+          
+          toast({ 
+            title: 'User exists', 
+            description: `User with email ${email} already exists in the system.`, 
+            variant: 'destructive' 
+          });
+        } else {
+          toast({ title: 'Auth Error', description: authError.message, variant: 'destructive' });
+        }
+        setLoading(false);
+        return;
+      }
+
+      if (!authData.user) {
+        toast({ title: 'Error', description: 'Failed to create user', variant: 'destructive' });
+        setLoading(false);
+        return;
+      }
+
+      // Create profile
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          id: authData.user.id,
+          name: formData.name,
+          email: email,
+          role: formData.role,
+          roll_number: rollNumber,
+        });
+
+      if (profileError) {
+        console.error('Profile error:', profileError);
+        toast({ title: 'Error', description: profileError.message, variant: 'destructive' });
+      } else {
+        // Success! Show credentials
+        const credentialMessage = `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🎓 ATTENDY - NEW USER CREDENTIALS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -185,35 +227,62 @@ Password: ${password}
 ${window.location.origin}
 
 ⚠️  Please save this information securely.
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
-      
-      const blob = new Blob([credentials], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${formData.name.replace(/\s/g, '_')}_credentials.txt`;
-      a.click();
-      URL.revokeObjectURL(url);
-      
-      setShowCreateModal(false);
-      setFormData({ name: '', role: 'student', roll_number: '' });
-      loadUsers();
-      loadStats();
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+`;
+        
+        // Show toast with credentials
+        toast({
+          title: '✅ User Created Successfully!',
+          description: `${formData.name}\nEmail: ${email}\nPassword: ${password}`,
+          duration: 10000,
+        });
+        
+        // Download credentials file
+        const blob = new Blob([credentialMessage], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${formData.name.replace(/\s/g, '_')}_credentials.txt`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        // Reset form and close modal
+        setShowCreateModal(false);
+        setFormData({ 
+          name: '', 
+          email: '', 
+          password: '', 
+          role: 'student', 
+          roll_number: '' 
+        });
+        loadUsers();
+        loadStats();
+      }
+    } catch (error: any) {
+      console.error('Create user error:', error);
+      toast({ 
+        title: 'Error', 
+        description: error.message || 'Failed to create user', 
+        variant: 'destructive' 
+      });
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleDeleteUser = async (userId: string, userName: string) => {
-    if (!confirm(`Delete ${userName}? This action cannot be undone.`)) return;
+    if (!confirm(`Delete ${userName}? This will remove the user from the system.`)) return;
 
     setLoading(true);
-    const { error } = await supabase
+    
+    // Delete from profiles first
+    const { error: profileError } = await supabase
       .from('profiles')
       .delete()
       .eq('id', userId);
 
-    if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    if (profileError) {
+      toast({ title: 'Error', description: profileError.message, variant: 'destructive' });
     } else {
       toast({ title: '✅ User deleted', description: `${userName} has been removed` });
       loadUsers();
@@ -251,6 +320,18 @@ ${window.location.origin}
     URL.revokeObjectURL(url);
     
     toast({ title: '✅ Exported', description: 'User list downloaded as CSV' });
+  };
+
+  const fillDemoCredentials = () => {
+    const demoPassword = generateRandomPassword();
+    setFormData({
+      ...formData,
+      name: 'Demo Student',
+      email: `demo.${Date.now()}@attendy.demo`,
+      password: demoPassword,
+      role: 'student',
+      roll_number: `DEMO${Date.now()}`,
+    });
   };
 
   return (
@@ -502,6 +583,36 @@ ${window.location.origin}
                   className="mt-1"
                 />
               </div>
+
+              <div>
+                <Label>Email (Optional - Auto-generated if empty)</Label>
+                <Input
+                  placeholder="user@attendy.demo"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className="mt-1"
+                />
+              </div>
+              
+              <div>
+                <Label>Password (Optional - Auto-generated if empty)</Label>
+                <div className="relative mt-1">
+                  <Input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Leave empty for auto-generated"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
               
               <div>
                 <Label>Role *</Label>
@@ -529,12 +640,16 @@ ${window.location.origin}
               
               <div className="bg-muted/30 p-3 rounded-lg">
                 <p className="text-sm text-muted-foreground">
-                  📝 <strong>Note:</strong> A secure password will be auto-generated and shown after creation.
-                  Credentials will be downloaded automatically.
+                  📝 <strong>Note:</strong> 
+                  <br/>• Email and password are optional - they will be auto-generated if left empty
+                  <br/>• Credentials will be downloaded as a text file after creation
                 </p>
               </div>
               
               <div className="flex gap-3 pt-4">
+                <Button variant="outline" onClick={fillDemoCredentials} className="flex-1" type="button">
+                  Fill Demo
+                </Button>
                 <Button variant="outline" onClick={() => setShowCreateModal(false)} className="flex-1">
                   Cancel
                 </Button>
