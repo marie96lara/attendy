@@ -109,7 +109,7 @@ export default function LoginPage() {
         </div>
 
         <p className="text-xs text-center text-muted-foreground">
-          Silver Oak University — Attendance System
+          Silver Oak University Attendance System
         </p>
       </div>
     </div>
