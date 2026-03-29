@@ -90,7 +90,7 @@ export default function FacultyTakeAttendance() {
 
     const code = generateOTP();
     const hash = await hashCode(code);
-    const expiresAt = new Date(Date.now() + 30000).toISOString(); // 10 seconds
+    const expiresAt = new Date(Date.now() + 30000).toISOString(); // 30 seconds
 
     // If there's an existing session, update it; otherwise create new
     if (sessionId) {

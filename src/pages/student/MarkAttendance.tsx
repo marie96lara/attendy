@@ -67,7 +67,7 @@ export default function StudentMarkAttendance() {
       
       try {
         const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 6000 });
         });
         gpsLat = pos.coords.latitude;
         gpsLng = pos.coords.longitude;
@@ -168,8 +168,8 @@ export default function StudentMarkAttendance() {
                 <div className="space-y-1">
                   <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
                     <div
-                      className="h-full bg-primary rounded-full transition-all duration-100 ease-linear"
-                      style={{ width: `${(timeLeft / 10) * 100}%` }}
+                      className="h-full bg-primary rounded-full transition-all duration-300 ease-linear"
+                      style={{ width: `${(timeLeft / 30) * 100}%` }}
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">{Math.ceil(timeLeft)}s remaining</p>
